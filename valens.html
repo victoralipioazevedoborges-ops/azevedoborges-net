@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VALENS — demonstração no navegador · Future Tecnologia</title><link rel="stylesheet" href="style.css">
+<style>.vbox{max-width:960px;margin:2rem auto;padding:1rem}.vbox table{border-collapse:collapse;width:100%}.vbox td,.vbox th{border:1px solid #8884;padding:.35rem .5rem;text-align:left;font-size:.92rem;word-break:break-all}.vbox button{margin:.3rem .3rem 0 0}#log{white-space:pre-wrap;font-family:monospace;font-size:.85rem}</style></head><body>
+<nav class="topbar" aria-label="Navegação principal"><a class="wordmark" href="index.html"><span class="mark">FT</span><span>Future Tecnologia</span></a><div class="navlinks"><a href="index.html#inicio">Início</a><a href="index.html#ecossistema">Ecossistema</a><a href="index.html#genesis">Gênesis</a><a href="index.html#teazer">Teazer</a><a href="idealizacoes.html">Idealizações</a><a href="index.html#anomalias">Anomalias</a><a href="index.html#autoria">Autoria</a><a href="videos.html">Vídeos</a><a href="declaracao_assinada.html">Declaração</a><a href="valens.html">VALENS demo</a><a href="index.html#debate">Debate</a></div><a class="contact-link" href="mailto:future@azevedoborges.net">Contato</a></nav>
+<main class="vbox"><h1>VALENS — demonstração local</h1>
+<p>Tudo roda <strong>no seu navegador</strong>; nenhum arquivo é enviado a servidor. Os números exibidos são <strong>medidos</strong> no seu arquivo, na hora.</p>
+<p class="small">O app VALENS completo (PWA) reencoda vídeo com WebCodecs e áudio com AAC/Opus/MP3 e gera manifesto forense. Esta página é uma demonstração reduzida: <b>gzip</b> sem perdas (CompressionStream) para qualquer arquivo, com SHA-256 e verificação de ida e volta; e, para vídeo/áudio, reencode opcional via MediaRecorder (com perdas, em tempo real, saída WebM).</p>
+<p><input type="file" id="f"> <label>Bitrate de vídeo (kbps) <input type="number" id="vbr" value="800" min="100" style="width:6em"></label></p>
+<p><button id="bgz">Comprimir (gzip, sem perdas)</button><button id="brec">Reencodar vídeo/áudio (MediaRecorder)</button></p>
+<table id="res"><tbody></tbody></table><p id="dl"></p><div id="log"></div></main>
+<script>
+const $=s=>document.querySelector(s);window.VALENS_RESULTS={};
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const sha=async b=>hex(await crypto.subtle.digest('SHA-256',b));
+const fmt=n=>n.toLocaleString('pt-BR')+' bytes';
+function row(k,v){const r=document.createElement('tr');r.innerHTML='<th></th><td></td>';r.children[0].textContent=k;r.children[1].textContent=v;$('#res tbody').appendChild(r)}
+function log(m){$('#log').textContent+=m+'\n'}
+function link(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.textContent='Baixar '+name+' ('+fmt(blob.size)+')';$('#dl').append(a,document.createElement('br'))}
+async function streamThrough(blob,t){return new Uint8Array(await new Response(blob.stream().pipeThrough(t)).arrayBuffer())}
+async function gz(){const f=$('#f').files[0];if(!f)return alert('Escolha um arquivo');$('#res tbody').innerHTML='';$('#dl').innerHTML='';
+ const orig=await f.arrayBuffer();const t0=performance.now();const c=await streamThrough(f,new CompressionStream('gzip'));const t1=performance.now();
+ const d=await streamThrough(new Blob([c]),new DecompressionStream('gzip'));const h0=await sha(orig),hc=await sha(c),hd=await sha(d);
+ const r={modo:'gzip',arquivo:f.name,original:orig.byteLength,comprimido:c.byteLength,razao:+(orig.byteLength/c.byteLength).toFixed(4),reducao_pct:+(100*(1-c.byteLength/orig.byteLength)).toFixed(2),ms:+(t1-t0).toFixed(1),sha_original:h0,sha_gz:hc,sha_descomprimido:hd,integro:h0===hd};
+ window.VALENS_RESULTS.gzip=r;row('Arquivo',f.name);row('Tamanho original',fmt(r.original));row('Tamanho gzip',fmt(r.comprimido));row('Razão (orig/comp)',r.razao+' : 1');row('Redução',r.reducao_pct+' %');row('Tempo de compressão',r.ms+' ms');row('SHA-256 original',h0);row('SHA-256 .gz',hc);row('SHA-256 após descompressão',hd);row('Ida e volta íntegra',r.integro?'SIM — bytes idênticos':'NÃO');
+ link(new Blob([c],{type:'application/gzip'}),f.name+'.gz');link(new Blob([hc+'  '+f.name+'.gz\n'+h0+'  '+f.name+'\n']),'SHA256SUMS.txt');
+ if(/^(video|audio)\//.test(f.type))log('Obs.: vídeo/áudio já são comprimidos; gzip costuma reduzir pouco. Use o reencode para redução real (com perdas).');return r}
+async function rec(){const f=$('#f').files[0];if(!f)return alert('Escolha um arquivo');if(!/^(video|audio)\//.test(f.type))return alert('Reencode só para vídeo/áudio; use gzip.');
+ $('#res tbody').innerHTML='';$('#dl').innerHTML='';const isV=f.type.startsWith('video');const el=document.createElement(isV?'video':'audio');el.src=URL.createObjectURL(f);el.muted=false;el.playsInline=true;
+ await new Promise((ok,er)=>{el.onloadedmetadata=ok;el.onerror=()=>er(new Error('formato não suportado pelo navegador'))});
+ const ac=new AudioContext();const src=ac.createMediaElementSource(el);const dst=ac.createMediaStreamDestination();src.connect(dst);
+ let stream;if(isV){const cv=document.createElement('canvas');const sc=Math.min(1,720/el.videoHeight);cv.width=Math.round(el.videoWidth*sc/2)*2;cv.height=Math.round(el.videoHeight*sc/2)*2;const g=cv.getContext('2d');
+  (function draw(){g.drawImage(el,0,0,cv.width,cv.height);if(!el.ended)requestAnimationFrame(draw)})();stream=cv.captureStream(30);dst.stream.getAudioTracks().forEach(t=>stream.addTrack(t));row('Resolução saída',cv.width+'x'+cv.height)}else stream=dst.stream;
+ const mime=isV?['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m)):'audio/webm;codecs=opus';
+ const mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:(+$('#vbr').value)*1000,audioBitsPerSecond:96000});const ch=[];mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+ log('Reencodando em tempo real ('+el.duration.toFixed(1)+' s)…');const t0=performance.now();mr.start(1000);await ac.resume();await el.play();await new Promise(ok=>el.onended=ok);mr.stop();await new Promise(ok=>mr.onstop=ok);
+ const out=new Blob(ch,{type:mime});const ob=await out.arrayBuffer();const r={modo:'reencode',arquivo:f.name,mime,duracao_s:+el.duration.toFixed(2),original:f.size,saida:out.size,razao:+(f.size/out.size).toFixed(4),reducao_pct:+(100*(1-out.size/f.size)).toFixed(2),ms:+(performance.now()-t0).toFixed(0),sha_original:await sha(await f.arrayBuffer()),sha_saida:await sha(ob)};
+ window.VALENS_RESULTS.reencode=r;row('Arquivo',f.name);row('Codec de saída',mime);row('Duração',r.duracao_s+' s');row('Tamanho original',fmt(r.original));row('Tamanho reencodado',fmt(r.saida));row('Razão',r.razao+' : 1');row('Redução',r.reducao_pct+' %');row('SHA-256 original',r.sha_original);row('SHA-256 saída',r.sha_saida);
+ if(out.size>f.size)log('Atenção: o derivado ficou MAIOR que o original (o original já era muito comprimido). Para este arquivo, mantenha o original ou reduza o bitrate.');log('Reencode é com perdas: o derivado não é idêntico ao original; o original não é alterado.');link(out,f.name.replace(/\.[^.]+$/,'')+'_valens.webm');return r}
+$('#bgz').onclick=()=>gz().catch(e=>log('Erro: '+e.message));$('#brec').onclick=()=>rec().catch(e=>log('Erro: '+e.message));
+</script></body></html>
