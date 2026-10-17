@@ -40,3 +40,7 @@ code,.hash{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;wo
 .placeholder{border:1px dashed var(--line);border-radius:12px;padding:1rem;color:var(--cream2)}
 footer{padding:2.5rem 1.5rem;border-top:1px solid var(--line);font-family:system-ui,sans-serif;font-size:.85rem;color:var(--cream2);text-align:center}
 .statuses{display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0}
+.navlinks a.nav-fraudes{display:inline-block;color:#fff;background:var(--red);font-weight:700;letter-spacing:.06em;padding:0 .6rem;border-radius:99px;animation:pulse 1.6s ease-in-out infinite}
+.navlinks a.nav-fraudes:hover,.navlinks a.nav-fraudes:focus{color:#fff;background:var(--red2)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(210,38,48,.75)}50%{opacity:.82;transform:scale(1.08);box-shadow:0 0 0 8px rgba(210,38,48,0)}}
+@media (prefers-reduced-motion:reduce){.navlinks a.nav-fraudes{animation:none;transform:none;box-shadow:0 0 0 2px rgba(255,77,85,.6)}}
